@@ -8,6 +8,7 @@ import {
   Platform,
   SafeAreaView,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -16,6 +17,39 @@ import {
 import { type Permission, PermissionsAndroid } from 'react-native'
 
 import QrCode from 'react-native-qrcode-svg'
+
+// Helper function to create a minimal valid CBOR-encoded DeviceResponse
+// According to ISO/IEC 18013-5, DeviceResponse structure:
+// DeviceResponse = {
+//   "version" : tstr,
+//   "documents" : [* Document],
+//   ? "documentErrors" : [* DocumentError]
+//   ? "status" : uint
+// }
+const createMinimalDeviceResponse = (): Uint8Array => {
+  // This creates a CBOR map with required fields + status
+  // In CBOR: Map with 3 entries
+  const cbor: number[] = [
+    0xa3, // Map with 3 entries
+    
+    // Key: "version" (text string, 7 characters)
+    0x67, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e,
+    // Value: "1.0" (text string, 3 characters)
+    0x63, 0x31, 0x2e, 0x30,
+    
+    // Key: "documents" (text string, 9 characters)
+    0x69, 0x64, 0x6f, 0x63, 0x75, 0x6d, 0x65, 0x6e, 0x74, 0x73,
+    // Value: empty array
+    0x80,
+    
+    // Key: "status" (text string, 6 characters)
+    0x66, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73,
+    // Value: 0 (unsigned integer - OK/Success)
+    0x00
+  ]
+  
+  return new Uint8Array(cbor)
+}
 
 const PERMISSIONS = [
   'android.permission.ACCESS_FINE_LOCATION',
@@ -83,10 +117,10 @@ export const App = () => {
   }
 
   const startEngagement = async () => {
-    if (Platform.OS === 'android' && !permissionsGranted) {
-      Alert.alert('Permissions Required', 'Please grant all permissions first')
-      return
-    }
+    // if (Platform.OS === 'android' && !permissionsGranted) {
+    //   Alert.alert('Permissions Required', 'Please grant all permissions first')
+    //   return
+    // }
 
     try {
       setState(EngagementState.INITIALIZING)
@@ -123,7 +157,11 @@ export const App = () => {
 
       // Create a sample response (in a real app, this would be generated based on the request)
       let response: Uint8Array
-      if (responseData) {
+      if (responseData === 'EMPTY') {
+        // Explicitly send empty response for testing error handling
+        response = new Uint8Array()
+        addLog('Sending empty response (for testing - will likely be rejected)', 'warning')
+      } else if (responseData && responseData.trim()) {
         try {
           // Try to parse as hex
           const hexData = responseData.replace(/\s/g, '')
@@ -135,9 +173,10 @@ export const App = () => {
           addLog(`Using custom UTF-8 response (${response.length} bytes)`, 'info')
         }
       } else {
-        // Empty response (verifier will likely reject this)
-        response = new Uint8Array()
-        addLog('Sending empty response (likely to be rejected)', 'warning')
+        // Create minimal valid CBOR DeviceResponse structure per ISO 18013-5
+        response = createMinimalDeviceResponse()
+        const responseHex = Buffer.from(response).toString('hex')
+        addLog(`Using minimal DeviceResponse (${response.length} bytes): ${responseHex}`, 'info')
       }
 
       addLog('Sending device response...', 'info')
@@ -244,13 +283,29 @@ export const App = () => {
 
         {/* Response Data Input */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Response Data (Optional)</Text>
-          <Text style={styles.hint}>Enter hex or UTF-8 text to send as device response</Text>
+          <Text style={styles.sectionTitle}>Response Data</Text>
+          <Text style={styles.hint}>
+            Leave empty to send minimal valid CBOR DeviceResponse, or enter custom hex/text
+          </Text>
+          <View style={styles.presetButtons}>
+            <Button
+              title="Minimal Valid"
+              onPress={() => setResponseData('')}
+              disabled={isEngagementActive}
+              color="#4CAF50"
+            />
+            <Button
+              title="Empty (Invalid)"
+              onPress={() => setResponseData('EMPTY')}
+              disabled={isEngagementActive}
+              color="#FF9800"
+            />
+          </View>
           <TextInput
             style={styles.input}
-            value={responseData}
+            value={responseData === 'EMPTY' ? '' : responseData}
             onChangeText={setResponseData}
-            placeholder="Leave empty for empty response, or enter hex/text..."
+            placeholder="Custom hex or text (optional)..."
             multiline
             numberOfLines={3}
             editable={!isEngagementActive}
@@ -326,6 +381,7 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: '#fff',
     padding: 16,
+    paddingTop: Platform.select({ ios: 60, android: (StatusBar.currentHeight || 0) + 16 }),
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
     flexDirection: 'row',
@@ -379,6 +435,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     marginBottom: 8,
+  },
+  presetButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
   },
   input: {
     borderWidth: 1,
