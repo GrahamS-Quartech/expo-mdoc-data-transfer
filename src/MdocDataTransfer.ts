@@ -68,8 +68,11 @@ class MdocDataTransfer {
       mDocNativeModuleEventEmitter.addListener(MdocDataTransferEvent.OnResponseSent, resolve)
     )
 
+    const deviceResponseBase64 = Buffer.from(deviceResponse).toString('base64')
+    console.log(`Sending device response (base64): ${deviceResponseBase64}`)
+
     MdocDataTransfer.handleError(() =>
-      mDocNativeModule.sendDeviceResponse(Buffer.from(deviceResponse).toString('base64'))
+      mDocNativeModule.sendDeviceResponse(deviceResponseBase64)
     )
 
     await p
