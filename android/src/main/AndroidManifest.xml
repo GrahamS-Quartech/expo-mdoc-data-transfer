@@ -1,1 +1,8 @@
-<manifest></manifest>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- This module requires minSdkVersion 26 due to the EUDI data transfer library and its dependencies -->
+    <uses-sdk android:minSdkVersion="26" 
+        tools:overrideLibrary="eu.europa.ec.eudi.iso18013.transfer,eu.europa.ec.eudi.wallet.document,com.android.identity" />
+
+</manifest>

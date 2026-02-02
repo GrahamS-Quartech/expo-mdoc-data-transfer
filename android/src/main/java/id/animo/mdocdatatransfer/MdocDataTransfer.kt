@@ -6,7 +6,8 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import eu.europa.ec.eudi.iso18013.transfer.TransferEvent
 import eu.europa.ec.eudi.iso18013.transfer.engagement.NfcEngagementService
-import eu.europa.ec.eudi.iso18013.transfer.response.DeviceRequest
+import eu.europa.ec.eudi.iso18013.transfer.response.device.DeviceRequest
+import eu.europa.ec.eudi.iso18013.transfer.response.device.DeviceResponse
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
@@ -85,7 +86,7 @@ class MdocDataTransfer(
     }
 
     fun respond(deviceResponse: ByteArray) {
-        MdocDataTransferManager.transferManager.value.sendResponse(deviceResponse)
+        MdocDataTransferManager.transferManager.value.sendResponse(DeviceResponse(deviceResponse))
     }
 
     fun enableNfc() {
